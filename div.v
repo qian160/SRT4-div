@@ -8,12 +8,10 @@ function [2:0] clz(input [7:0] x);
         end
     end
 endfunction
-// -5 /  3 = -1, -5 %  3 = -2
-//  5 / -3 = -1,  5 % -3 =  2
-// -5 / -3 =  1, -5 % -3 = -2
-// rule: use abs(a) and abs(b) to participate in the calculation,
-// first output some postive numbers, then adjust their signs
-// the sign of `r`(a % b) is the same as `a`'s
+// -5 %  3 = -2
+//  5 % -3 =  2
+// -5 % -3 = -2
+// the sign of `r`(a % b) is the same as `a`(divisor)
 module SRT4_div(
     input   reg         clock,
     input   reg         start,
@@ -57,7 +55,6 @@ module SRT4_div(
                 next_state = DivFree;
             end
             DivOn:      begin
-                // not cnt == 0
                 next_state = (cnt == 2'd0)? DivEnd: DivOn;
             end
             DivEnd:     begin
@@ -100,9 +97,9 @@ module SRT4_div(
                     2:  PA <= (PA << 2) - B_2;
                     default:;
                 endcase
-                // accumulate
+                // accumulate: acc += abs(qi) * exp(4, cnt)
+                // exp(4, cnt) = exp(2, 2cnt)
                 case (qi)
-                    // acc += abs(qi) * exp(4, cnt)
                     -2: q_neg_acc <= q_neg_acc + (8'd2 << ({cnt, 1'b0}));
                     -1: q_neg_acc <= q_neg_acc + (8'd1 << ({cnt, 1'b0}));
                     1:  q_pos_acc <= q_pos_acc + (8'd1 << ({cnt, 1'b0}));
@@ -114,7 +111,7 @@ module SRT4_div(
             DivEnd:     begin
                 ready <= 1'b1;
                 cnt <= 2'd3;
-                // adjust the result
+                // restore
                 if (PA[16])  begin
                     PA <= (PA + {B, 8'b0}) >> clz(abs_b);
                     q_neg_acc <= q_neg_acc + 1;
